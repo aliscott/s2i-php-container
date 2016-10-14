@@ -16,12 +16,14 @@ LABEL io.k8s.description="Platform for building and running PHP 5.6 applications
       io.openshift.tags="builder,php,php56,rh-php56"
 
 # Install Apache httpd and PHP
-RUN yum install -y centos-release-scl && \
+RUN yum -y install centos-release-scl epel-release && \
+    wget http://rpms.famillecollet.com/enterprise/remi-release-7.rpm && \
+    rpm -Uvh remi-release-7*.rpm && \
     INSTALL_PKGS="rh-php56 rh-php56-php rh-php56-php-mysqlnd rh-php56-php-pgsql rh-php56-php-bcmath \
                   rh-php56-php-gd rh-php56-php-intl rh-php56-php-ldap rh-php56-php-mbstring rh-php56-php-pdo \
-                  rh-php56-php-pecl-memcache rh-php56-php-process rh-php56-php-soap rh-php56-php-opcache rh-php56-php-xml \
-                  rh-php56-php-pecl-xdebug" && \
-    yum install -y --setopt=tsflags=nodocs --enablerepo=centosplus $INSTALL_PKGS && \
+                  php56-php-mcrypt rh-php56-php-pecl-memcache rh-php56-php-process rh-php56-php-soap \
+                  rh-php56-php-opcache rh-php56-php-xml rh-php56-php-pecl-xdebug" && \
+    yum install -y --setopt=tsflags=nodocs --enablerepo=centosplus,remi-php56 $INSTALL_PKGS && \
     rpm -V $INSTALL_PKGS && \
     yum clean all -y
 
@@ -35,6 +37,10 @@ COPY ./contrib/ /opt/app-root
 # In order to drop the root user, we have to make some directories world
 # writeable as OpenShift default security model is to run the container under
 # random UID.
+
+RUN cp /opt/remi/php56/root/lib64/php/modules/mcrypt.so /opt/rh/rh-php56/root/lib64/php/modules/ && \
+    echo "extension=mcrypt.so" > /etc/opt/rh/rh-php56/php.d/30-mcrypt.ini
+
 RUN sed -i -f /opt/app-root/etc/httpdconf.sed /opt/rh/httpd24/root/etc/httpd/conf/httpd.conf && \
     echo "IncludeOptional /opt/app-root/etc/conf.d/*.conf" >> /opt/rh/httpd24/root/etc/httpd/conf/httpd.conf && \
     sed -i '/php_value session.save_path/d' /opt/rh/httpd24/root/etc/httpd/conf.d/rh-php56-php.conf && \
